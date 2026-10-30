@@ -252,6 +252,75 @@
       font-weight: 500;
     }
 
+    /* 留言板 */
+    .guestbook {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr;
+      gap: 32px;
+      align-items: start;
+    }
+    .gb-form {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      box-shadow: 0 12px 40px -20px rgba(59, 42, 32, .2);
+      display: grid;
+      gap: 16px;
+    }
+    .gb-form label { font-weight: 500; font-size: .95rem; }
+    .gb-form input,
+    .gb-form textarea {
+      width: 100%;
+      margin-top: 6px;
+      padding: 12px 16px;
+      border: 1.5px solid var(--soft);
+      border-radius: 14px;
+      background: var(--bg);
+      font: inherit;
+      color: var(--text);
+      resize: vertical;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .gb-form input:focus,
+    .gb-form textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(232, 116, 59, .15);
+    }
+    .gb-form .count { float: right; color: var(--muted); font-size: .85rem; font-weight: 400; }
+    .gb-form button { border: none; cursor: pointer; font: inherit; font-weight: 500; }
+    .gb-form button:disabled { opacity: .6; cursor: wait; transform: none; }
+    .gb-status { min-height: 1.4em; font-size: .9rem; color: var(--muted); }
+    .gb-status.error { color: #c0392b; }
+
+    .gb-list { display: grid; gap: 16px; list-style: none; }
+    .gb-item {
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 20px 24px;
+      box-shadow: 0 8px 30px -18px rgba(59, 42, 32, .25);
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 4px 14px;
+      animation: pop .4s ease;
+    }
+    @keyframes pop { from { opacity: 0; transform: translateY(10px); } }
+    .gb-avatar {
+      grid-row: span 2;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #ffb07c, #f4b860);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+    }
+    .gb-meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .gb-meta strong { color: var(--primary-dark); }
+    .gb-meta time { color: var(--muted); font-size: .85rem; }
+    .gb-item p { color: var(--text); overflow-wrap: anywhere; white-space: pre-wrap; }
+    .gb-empty { color: var(--muted); text-align: center; padding: 32px; }
+
     /* 聯絡 */
     .contact { text-align: center; }
     .contact p { color: var(--muted); margin-bottom: 28px; }
@@ -276,6 +345,7 @@
       .nav-links a { margin-left: 16px; font-size: .95rem; }
       section { padding: 64px 16px; }
       .hobby-box { padding: 48px 24px; }
+      .guestbook { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -289,6 +359,7 @@
       <div class="nav-links">
         <a href="#about">關於我</a>
         <a href="#hobby">興趣</a>
+        <a href="#guestbook">留言板</a>
         <a href="#contact">聯絡</a>
       </div>
     </div>
@@ -344,6 +415,28 @@
     </div>
   </section>
 
+  <section id="guestbook">
+    <div class="section-title reveal">
+      <small>Guestbook</small>
+      <h2>訪客留言板</h2>
+    </div>
+    <div class="guestbook">
+      <form class="gb-form reveal" id="gb-form">
+        <label>名字 <span class="count" id="name-count">0/30</span>
+          <input type="text" name="name" maxlength="30" required placeholder="你的名字">
+        </label>
+        <label>想說的話 <span class="count" id="msg-count">0/200</span>
+          <textarea name="message" rows="3" maxlength="200" required placeholder="留下一句話給 Isaac 吧！"></textarea>
+        </label>
+        <button type="submit" class="btn">送出留言 💬</button>
+        <div class="gb-status" id="gb-status" role="status"></div>
+      </form>
+      <ul class="gb-list" id="gb-list">
+        <li class="gb-empty">載入留言中…</li>
+      </ul>
+    </div>
+  </section>
+
   <section id="contact" class="contact">
     <div class="section-title reveal">
       <small>Contact</small>
@@ -364,6 +457,97 @@
       });
     }, { threshold: 0.15 });
     document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+    // 留言板
+    const API = '/api/guestbook';
+    const form = document.getElementById('gb-form');
+    const list = document.getElementById('gb-list');
+    const status = document.getElementById('gb-status');
+    const submitBtn = form.querySelector('button');
+    const timeFmt = new Intl.DateTimeFormat('zh-TW', { dateStyle: 'medium', timeStyle: 'short' });
+
+    function setStatus(text, isError = false) {
+      status.textContent = text;
+      status.classList.toggle('error', isError);
+    }
+
+    // 用 textContent 填入，避免訪客輸入的內容被當成 HTML 執行
+    function renderItem(entry) {
+      const li = document.createElement('li');
+      li.className = 'gb-item';
+      const avatar = document.createElement('div');
+      avatar.className = 'gb-avatar';
+      avatar.textContent = [...entry.name][0].toUpperCase();
+      const meta = document.createElement('div');
+      meta.className = 'gb-meta';
+      const name = document.createElement('strong');
+      name.textContent = entry.name;
+      const time = document.createElement('time');
+      time.dateTime = entry.created_at;
+      time.textContent = timeFmt.format(new Date(entry.created_at));
+      meta.append(name, time);
+      const msg = document.createElement('p');
+      msg.textContent = entry.message;
+      li.append(avatar, meta, msg);
+      return li;
+    }
+
+    function showEmpty(text) {
+      list.innerHTML = '';
+      const li = document.createElement('li');
+      li.className = 'gb-empty';
+      li.textContent = text;
+      list.append(li);
+    }
+
+    async function loadEntries() {
+      try {
+        const res = await fetch(API, { cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        if (data.length === 0) return showEmpty('還沒有人留言，來當第一個吧！');
+        list.innerHTML = '';
+        data.forEach(entry => list.append(renderItem(entry)));
+      } catch (err) {
+        showEmpty('留言載入失敗，請稍後重新整理。');
+      }
+    }
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = form.elements.name.value.trim();
+      const message = form.elements.message.value.trim();
+      if (!name || !message) return setStatus('請填寫名字和留言。', true);
+
+      submitBtn.disabled = true;
+      setStatus('送出中…');
+      try {
+        const res = await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, message }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        if (list.querySelector('.gb-empty')) list.innerHTML = '';
+        list.prepend(renderItem(data));
+        form.reset();
+        updateCounts();
+        setStatus('謝謝你的留言！🎉');
+      } catch (err) {
+        setStatus(err.message || '留言送出失敗，請稍後再試。', true);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    function updateCounts() {
+      document.getElementById('name-count').textContent = `${[...form.elements.name.value].length}/30`;
+      document.getElementById('msg-count').textContent = `${[...form.elements.message.value].length}/200`;
+    }
+    form.addEventListener('input', updateCounts);
+
+    loadEntries();
   </script>
 </body>
 </html>
