@@ -321,6 +321,20 @@
     .gb-item p { color: var(--text); overflow-wrap: anywhere; white-space: pre-wrap; }
     .gb-empty { color: var(--muted); text-align: center; padding: 32px; }
 
+    .gb-summary { margin-bottom: 20px; }
+    .gb-summary .btn { border: none; cursor: pointer; font: inherit; font-weight: 500; }
+    .gb-summary .btn:disabled { opacity: .6; cursor: wait; transform: none; }
+    .gb-summary-text {
+      margin-top: 14px;
+      padding: 16px 20px;
+      border-radius: 18px;
+      background: var(--soft);
+      color: var(--primary-dark);
+      font-weight: 500;
+      border-left: 4px solid var(--primary);
+    }
+    .gb-summary-text.error { background: #fdecea; color: #c0392b; border-left-color: #c0392b; }
+
     /* 聯絡 */
     .contact { text-align: center; }
     .contact p { color: var(--muted); margin-bottom: 28px; }
@@ -431,9 +445,15 @@
         <button type="submit" class="btn">送出留言 💬</button>
         <div class="gb-status" id="gb-status" role="status"></div>
       </form>
-      <ul class="gb-list" id="gb-list">
-        <li class="gb-empty">載入留言中…</li>
-      </ul>
+      <div>
+        <div class="gb-summary reveal">
+          <button type="button" class="btn" id="summary-btn">✨ AI 一句話總結</button>
+          <p class="gb-summary-text" id="summary-text" role="status" hidden></p>
+        </div>
+        <ul class="gb-list" id="gb-list">
+          <li class="gb-empty">載入留言中…</li>
+        </ul>
+      </div>
     </div>
   </section>
 
@@ -546,6 +566,31 @@
       document.getElementById('msg-count').textContent = `${[...form.elements.message.value].length}/200`;
     }
     form.addEventListener('input', updateCounts);
+
+    // AI 一句話總結
+    const summaryBtn = document.getElementById('summary-btn');
+    const summaryText = document.getElementById('summary-text');
+
+    function showSummary(text, isError = false) {
+      summaryText.hidden = false;
+      summaryText.textContent = text;
+      summaryText.classList.toggle('error', isError);
+    }
+
+    summaryBtn.addEventListener('click', async () => {
+      summaryBtn.disabled = true;
+      showSummary('AI 正在閱讀留言…');
+      try {
+        const res = await fetch('/api/summary', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        showSummary(data.summary);
+      } catch (err) {
+        showSummary(err.message || '產生總結失敗，請稍後再試。', true);
+      } finally {
+        summaryBtn.disabled = false;
+      }
+    });
 
     loadEntries();
   </script>
