@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>進項發票登錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fff8f1;
+      --surface: #ffffff;
+      --text: #3b2a20;
+      --muted: #8a6f5f;
+      --primary: #e8743b;
+      --primary-dark: #c95a24;
+      --soft: #fde6d2;
+      --line: #f3dcc8;
+      --ok: #2e7d4f;
+      --ok-bg: #e3f4ea;
+      --warn: #9a6200;
+      --warn-bg: #fff3d6;
+      --err: #c0392b;
+      --err-bg: #fdecea;
+      --radius: 20px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Noto Sans TC", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      padding: 14px 16px;
+    }
+    header .inner { max-width: 1120px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    header h1 { font-size: 1.25rem; color: var(--primary-dark); }
+    header a { color: var(--muted); font-size: .9rem; }
+    main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 24px; }
+    .panel {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: 0 12px 40px -24px rgba(59, 42, 32, .25);
+    }
+    .panel h2 { font-size: 1.1rem; margin-bottom: 16px; }
+    .grid-main { display: grid; grid-template-columns: 360px 1fr; gap: 24px; align-items: start; }
+    main > *, .grid-main > * { min-width: 0; } /* 讓寬表格在框內捲動，不撐破版面 */
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 20px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(120deg, var(--primary), var(--primary-dark));
+      color: #fff;
+      font: inherit; font-weight: 500;
+      cursor: pointer;
+    }
+    .btn.ghost { background: var(--soft); color: var(--primary-dark); }
+    .btn.small { padding: 4px 12px; font-size: .85rem; white-space: nowrap; }
+    .btn:disabled { opacity: .55; cursor: wait; }
+
+    .drop {
+      border: 2px dashed var(--line);
+      border-radius: 16px;
+      min-height: 220px;
+      display: grid; place-items: center;
+      text-align: center;
+      color: var(--muted);
+      padding: 16px;
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color .2s, background .2s;
+    }
+    .drop.over { border-color: var(--primary); background: var(--soft); }
+    .drop img { max-width: 100%; max-height: 420px; border-radius: 8px; }
+    .upload-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .upload-actions .btn { flex: 1; }
+
+    .msg { margin-top: 12px; padding: 10px 14px; border-radius: 12px; font-size: .92rem; }
+    .msg:empty { display: none; }
+    .msg.info { background: var(--soft); color: var(--primary-dark); }
+    .msg.ok { background: var(--ok-bg); color: var(--ok); }
+    .msg.warn { background: var(--warn-bg); color: var(--warn); }
+    .msg.error { background: var(--err-bg); color: var(--err); }
+    .msg ul { padding-left: 18px; }
+
+    form .fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 16px; }
+    .f { display: grid; align-content: start; gap: 4px; font-size: .9rem; font-weight: 500; min-width: 0; }
+    .f.span2 { grid-column: span 2; }
+    .f.span4 { grid-column: 1 / -1; }
+    .f .hint { font-weight: 400; color: var(--warn); font-size: .8rem; min-height: 1em; }
+    input, select, textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--line);
+      border-radius: 10px;
+      background: var(--bg);
+      font: inherit; font-weight: 400;
+      color: var(--text);
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(232, 116, 59, .15); }
+    input.num { text-align: right; font-variant-numeric: tabular-nums; }
+    input.filled { background: #fff4e9; }
+    .check { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: .9rem; }
+    .check input { width: auto; }
+
+    h3 { font-size: .95rem; margin: 22px 0 10px; display: flex; justify-content: space-between; align-items: center; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { padding: 6px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+    td input { padding: 6px 8px; }
+    .items td:nth-child(1) { min-width: 180px; }
+    .items td:nth-child(n+2):nth-child(-n+4) { width: 110px; }
+    .del { background: none; border: none; color: var(--err); cursor: pointer; font-size: 1.1rem; }
+    .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; flex-wrap: wrap; }
+
+    .list td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .8rem; white-space: nowrap; }
+    .badge.synced { background: var(--ok-bg); color: var(--ok); }
+    .badge.failed { background: var(--err-bg); color: var(--err); }
+    .badge.pending, .badge.not_configured { background: var(--warn-bg); color: var(--warn); }
+    .empty { color: var(--muted); text-align: center; padding: 20px; }
+
+    .gate { max-width: 420px; margin: 12vh auto; text-align: center; }
+    .gate p { color: var(--muted); margin-bottom: 16px; }
+    .gate form { display: flex; gap: 8px; }
+
+    @media (max-width: 900px) {
+      .grid-main { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      form .fields { grid-template-columns: 1fr 1fr; }
+      .f.span2, .f.deduct, .f.calc { grid-column: 1 / -1; }
+      .spacer { display: none; }
+      .panel { padding: 18px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="inner">
+      <h1>🧾 進項發票登錄</h1>
+      <a href="#" id="logout" hidden>登出</a>
+    </div>
+  </header>
+
+  <!-- 存取密碼 -->
+  <div class="gate panel" id="gate" hidden>
+    <h2>請輸入存取密碼</h2>
+    <p>發票資料僅限內部使用。</p>
+    <form id="gate-form">
+      <input type="password" name="key" required autocomplete="current-password" placeholder="存取密碼">
+      <button class="btn" type="submit">進入</button>
+    </form>
+    <div class="msg" id="gate-msg"></div>
+  </div>
+
+  <main id="app" hidden>
+    <div class="grid-main">
+      <!-- 掃描 -->
+      <section class="panel">
+        <h2>① 掃描發票</h2>
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="選擇發票檔案">
+          <div id="drop-hint">📷 點這裡或把發票照片 / PDF 拖進來</div>
+        </div>
+        <div class="upload-actions">
+          <button type="button" class="btn ghost" id="camera-btn">📷 拍照</button>
+          <button type="button" class="btn ghost" id="file-btn">📁 選檔案</button>
+        </div>
+        <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
+        <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,application/pdf" hidden>
+        <div class="upload-actions">
+          <button type="button" class="btn" id="ocr-btn" disabled>✨ AI 辨識文字</button>
+        </div>
+        <div class="msg" id="ocr-msg"></div>
+      </section>
+
+      <!-- 表單 -->
+      <section class="panel">
+        <h2>② 確認進項發票內容</h2>
+        <form id="inv-form" novalidate>
+          <div class="fields">
+            <label class="f">發票號碼 *
+              <input name="invoice_number" required maxlength="12" placeholder="AB12345678" autocomplete="off">
+              <span class="hint" data-hint="invoice_number"></span>
+            </label>
+            <label class="f">發票日期 *
+              <input name="invoice_date" type="date" required>
+              <span class="hint" data-hint="invoice_date"></span>
+            </label>
+            <label class="f">發票種類 *
+              <select name="invoice_type" required>
+                <option>電子發票</option>
+                <option>三聯式</option>
+                <option>二聯式</option>
+                <option>收銀機三聯式</option>
+                <option>收銀機二聯式</option>
+                <option>其他</option>
+              </select>
+            </label>
+            <label class="f">課稅別 *
+              <select name="tax_type" required>
+                <option>應稅</option>
+                <option>零稅率</option>
+                <option>免稅</option>
+              </select>
+            </label>
+
+            <label class="f">賣方統編
+              <input name="seller_tax_id" inputmode="numeric" maxlength="8" placeholder="8 位數字">
+              <span class="hint" data-hint="seller_tax_id"></span>
+            </label>
+            <label class="f span2">賣方名稱
+              <input name="seller_name" maxlength="100">
+            </label>
+            <label class="f check deduct" style="align-self:center">
+              <input type="checkbox" name="deductible" checked> 進項可扣抵
+            </label>
+
+            <label class="f">買方統編
+              <input name="buyer_tax_id" inputmode="numeric" maxlength="8" placeholder="8 位數字">
+              <span class="hint" data-hint="buyer_tax_id"></span>
+            </label>
+            <label class="f span2">買方名稱
+              <input name="buyer_name" maxlength="100">
+            </label>
+            <div class="spacer"></div>
+
+            <label class="f">銷售額（未稅）*
+              <input name="sales_amount" class="num" inputmode="decimal" required>
+            </label>
+            <label class="f">稅額 *
+              <input name="tax_amount" class="num" inputmode="decimal" required>
+            </label>
+            <label class="f">總計 *
+              <input name="total_amount" class="num" inputmode="decimal" required>
+              <span class="hint" data-hint="total_amount"></span>
+            </label>
+            <div class="f calc" style="align-self:center">
+              <button type="button" class="btn ghost small" id="calc-btn" title="依課稅別由總計推算銷售額與稅額">由總計推算 5% 稅額</button>
+            </div>
+          </div>
+
+          <h3>品項明細 <button type="button" class="btn ghost small" id="add-item">＋ 新增品項</button></h3>
+          <div class="table-wrap">
+            <table class="items">
+              <thead><tr><th>品名</th><th>數量</th><th>單價</th><th>金額</th><th></th></tr></thead>
+              <tbody id="items"></tbody>
+            </table>
+          </div>
+
+          <label class="f span4" style="margin-top:16px">備註
+            <textarea name="notes" rows="2" maxlength="500"></textarea>
+          </label>
+
+          <div class="form-actions">
+            <button type="button" class="btn ghost" id="reset-btn">清除重填</button>
+            <button type="submit" class="btn" id="save-btn">⬆️ 儲存並上傳 ERP</button>
+          </div>
+          <div class="msg" id="save-msg" role="status"></div>
+        </form>
+      </section>
+    </div>
+
+    <!-- 列表 -->
+    <section class="panel">
+      <h2>最近登錄的進項發票</h2>
+      <div class="table-wrap">
+        <table class="list">
+          <thead>
+            <tr><th>發票號碼</th><th>日期</th><th>賣方</th><th>銷售額</th><th>稅額</th><th>總計</th><th>ERP</th><th></th></tr>
+          </thead>
+          <tbody id="list"><tr><td colspan="8" class="empty">載入中…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------- 存取密碼 ----------
+    const store = {
+      get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+      set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+      del(k) { try { localStorage.removeItem(k); } catch {} },
+    };
+    let accessKey = store.get('invoice-key') || '';
+    const $ = id => document.getElementById(id);
+
+    function setMsg(el, text, type = 'info') {
+      el.className = `msg ${type}`;
+      el.textContent = text;
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', 'x-access-key': accessKey, ...options.headers },
+        cache: 'no-store',
+      });
+      let data;
+      try { data = await res.json(); } catch { data = {}; }
+      if (res.status === 401) showGate('存取密碼錯誤，請重新輸入。');
+      if (!res.ok) {
+        const err = new Error(data.error || `伺服器錯誤（${res.status}）`);
+        err.status = res.status;
+        throw err;
+      }
+      return data;
+    }
+
+    function showGate(text) {
+      store.del('invoice-key');
+      accessKey = '';
+      $('app').hidden = true;
+      $('logout').hidden = true;
+      $('gate').hidden = false;
+      if (text) setMsg($('gate-msg'), text, 'error');
+    }
+
+    async function enter() {
+      try {
+        await loadList();
+        $('gate').hidden = true;
+        $('app').hidden = false;
+        $('logout').hidden = false;
+      } catch (err) {
+        if (err.status !== 401) showGate(err.message);
+      }
+    }
+
+    $('gate-form').addEventListener('submit', e => {
+      e.preventDefault();
+      accessKey = e.target.elements.key.value;
+      store.set('invoice-key', accessKey);
+      setMsg($('gate-msg'), '驗證中…');
+      enter();
+    });
+    $('logout').addEventListener('click', e => { e.preventDefault(); showGate(); });
+
+    // ---------- 上傳檔案 ----------
+    let upload = null; // { data, media_type }
+    const drop = $('drop');
+
+    // 圖片縮到長邊 2000px 的 JPEG，避免超過上傳大小、也加快辨識
+    function imageToJpeg(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, 2000 / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL('image/jpeg', 0.88));
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('無法讀取這張圖片。')); };
+        img.src = url;
+      });
+    }
+
+    function fileToDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = () => reject(new Error('無法讀取檔案。'));
+        r.readAsDataURL(file);
+      });
+    }
+
+    async function handleFile(file) {
+      if (!file) return;
+      const msg = $('ocr-msg');
+      try {
+        let dataUrl;
+        drop.innerHTML = '';
+        if (file.type === 'application/pdf') {
+          if (file.size > 3 * 1024 * 1024) throw new Error('PDF 請小於 3MB。');
+          dataUrl = await fileToDataUrl(file);
+          const div = document.createElement('div');
+          div.textContent = `📄 ${file.name}`;
+          drop.append(div);
+        } else if (file.type.startsWith('image/')) {
+          dataUrl = await imageToJpeg(file);
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          img.alt = '發票預覽';
+          drop.append(img);
+        } else {
+          throw new Error('只支援圖片或 PDF。');
+        }
+        const [head, data] = dataUrl.split(',');
+        upload = { data, media_type: head.slice(5, head.indexOf(';')) };
+        $('ocr-btn').disabled = false;
+        setMsg(msg, '檔案已準備好，按「AI 辨識文字」開始。');
+      } catch (err) {
+        upload = null;
+        $('ocr-btn').disabled = true;
+        drop.innerHTML = '<div>📷 點這裡或把發票照片 / PDF 拖進來</div>';
+        setMsg(msg, err.message, 'error');
+      }
+    }
+
+    const cameraInput = $('camera-input');
+    const fileInput = $('file-input');
+    $('camera-btn').addEventListener('click', () => cameraInput.click());
+    $('file-btn').addEventListener('click', () => fileInput.click());
+    drop.addEventListener('click', () => fileInput.click());
+    drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+    for (const input of [cameraInput, fileInput]) {
+      input.addEventListener('change', () => { handleFile(input.files[0]); input.value = ''; });
+    }
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', e => {
+      e.preventDefault();
+      drop.classList.remove('over');
+      handleFile(e.dataTransfer.files[0]);
+    });
+
+    // ---------- AI 辨識 ----------
+    const form = $('inv-form');
+    const F = name => form.elements[name];
+
+    $('ocr-btn').addEventListener('click', async () => {
+      if (!upload) return;
+      const btn = $('ocr-btn');
+      const msg = $('ocr-msg');
+      btn.disabled = true;
+      setMsg(msg, 'AI 正在辨識發票，約需 10–30 秒…');
+      try {
+        const { invoice } = await api('/api/invoice-ocr', { method: 'POST', body: JSON.stringify(upload) });
+        fillForm(invoice);
+        msg.className = 'msg ' + (invoice.warnings?.length ? 'warn' : 'ok');
+        msg.textContent = invoice.warnings?.length
+          ? '辨識完成，以下項目請人工確認：'
+          : '辨識完成！請核對右側欄位後再儲存。';
+        if (invoice.warnings?.length) {
+          const ul = document.createElement('ul');
+          invoice.warnings.forEach(w => { const li = document.createElement('li'); li.textContent = w; ul.append(li); });
+          msg.append(ul);
+        }
+      } catch (err) {
+        setMsg(msg, err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    function fillForm(inv) {
+      const set = (name, value) => {
+        const el = F(name);
+        el.classList.remove('filled');
+        if (value === null || value === undefined || value === '') return;
+        el.value = value;
+        el.classList.add('filled');
+      };
+      set('invoice_number', inv.invoice_number);
+      set('invoice_date', inv.invoice_date);
+      set('invoice_type', inv.invoice_type);
+      set('tax_type', inv.tax_type);
+      set('seller_tax_id', inv.seller_tax_id);
+      set('seller_name', inv.seller_name);
+      set('buyer_tax_id', inv.buyer_tax_id);
+      set('buyer_name', inv.buyer_name);
+      set('sales_amount', inv.sales_amount);
+      set('tax_amount', inv.tax_amount);
+      set('total_amount', inv.total_amount);
+      if (inv.notes) set('notes', inv.notes);
+      $('items').innerHTML = '';
+      (inv.items || []).forEach(addItem);
+      validateHints();
+    }
+
+    // ---------- 品項 ----------
+    function addItem(item = {}) {
+      const tr = document.createElement('tr');
+      const cells = [
+        ['description', 'text', ''],
+        ['quantity', 'text', 'num'],
+        ['unit_price', 'text', 'num'],
+        ['amount', 'text', 'num'],
+      ];
+      for (const [key, type, cls] of cells) {
+        const td = document.createElement('td');
+        const input = document.createElement('input');
+        input.type = type;
+        input.dataset.key = key;
+        if (cls) { input.className = cls; input.inputMode = 'decimal'; }
+        input.value = item[key] ?? '';
+        td.append(input);
+        tr.append(td);
+      }
+      const td = document.createElement('td');
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'del';
+      del.title = '刪除';
+      del.textContent = '✕';
+      del.addEventListener('click', () => tr.remove());
+      td.append(del);
+      tr.append(td);
+      $('items').append(tr);
+    }
+    $('add-item').addEventListener('click', () => addItem());
+
+    // 品項輸入數量 × 單價時自動算金額
+    $('items').addEventListener('input', e => {
+      const key = e.target.dataset.key;
+      if (key !== 'quantity' && key !== 'unit_price') return;
+      const tr = e.target.closest('tr');
+      const q = toNum(tr.querySelector('[data-key=quantity]').value);
+      const p = toNum(tr.querySelector('[data-key=unit_price]').value);
+      if (Number.isFinite(q) && Number.isFinite(p)) {
+        tr.querySelector('[data-key=amount]').value = Math.round(q * p * 100) / 100;
+      }
+    });
+
+    // ---------- 驗證與計算 ----------
+    const toNum = v => (String(v).trim() === '' ? NaN : Number(String(v).replace(/,/g, '')));
+
+    // 營利事業統一編號檢查碼（財政部 2023 新制：除以 5）
+    function validTaxId(id) {
+      if (!/^\d{8}$/.test(id)) return false;
+      const w = [1, 2, 1, 2, 1, 2, 4, 1];
+      let sum = 0;
+      for (let i = 0; i < 8; i++) {
+        const p = Number(id[i]) * w[i];
+        const s = Math.floor(p / 10) + (p % 10);
+        sum += s === 10 ? 1 : s; // 第 7 碼為 7 時 7×4=28 → 10 → 可視為 1 或 0
+      }
+      return sum % 5 === 0 || (id[6] === '7' && (sum - 1) % 5 === 0);
+    }
+
+    function hint(name, text) {
+      form.querySelector(`[data-hint="${name}"]`).textContent = text;
+    }
+
+    function validateHints() {
+      const no = F('invoice_number').value.toUpperCase().replace(/[\s-]/g, '');
+      hint('invoice_number', no && !/^[A-Z]{2}\d{8}$/.test(no) ? '格式應為 2 碼英文 + 8 碼數字' : '');
+      for (const k of ['seller_tax_id', 'buyer_tax_id']) {
+        const v = F(k).value.trim();
+        hint(k, v && !validTaxId(v) ? '統編檢查碼不符，請確認' : '');
+      }
+      const d = F('invoice_date').value;
+      hint('invoice_date', d && new Date(d) > new Date() ? '日期在未來，請確認' : '');
+      const s = toNum(F('sales_amount').value), t = toNum(F('tax_amount').value), total = toNum(F('total_amount').value);
+      hint('total_amount', [s, t, total].every(Number.isFinite) && Math.abs(s + t - total) > 1 ? '銷售額＋稅額 ≠ 總計' : '');
+    }
+    form.addEventListener('input', e => {
+      e.target.classList?.remove('filled');
+      validateHints();
+    });
+
+    $('calc-btn').addEventListener('click', () => {
+      const total = toNum(F('total_amount').value);
+      if (!Number.isFinite(total)) return setMsg($('save-msg'), '請先填寫總計。', 'warn');
+      const sales = F('tax_type').value === '應稅' ? Math.round(total / 1.05) : total;
+      F('sales_amount').value = sales;
+      F('tax_amount').value = Math.round((total - sales) * 100) / 100;
+      validateHints();
+    });
+
+    function resetForm() {
+      form.reset();
+      form.querySelectorAll('.filled').forEach(el => el.classList.remove('filled'));
+      $('items').innerHTML = '';
+      F('buyer_tax_id').value = store.get('invoice-buyer-id') || '';
+      F('buyer_name').value = store.get('invoice-buyer-name') || '';
+      validateHints();
+    }
+    $('reset-btn').addEventListener('click', () => { resetForm(); setMsg($('save-msg'), ''); });
+
+    // ---------- 儲存 ----------
+    const ERP_TEXT = {
+      synced: '已上傳 ERP',
+      failed: 'ERP 上傳失敗',
+      not_configured: '未設定 ERP',
+      pending: '待上傳',
+    };
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const msg = $('save-msg');
+      const payload = {
+        invoice_number: F('invoice_number').value,
+        invoice_date: F('invoice_date').value,
+        invoice_type: F('invoice_type').value,
+        tax_type: F('tax_type').value,
+        seller_tax_id: F('seller_tax_id').value,
+        seller_name: F('seller_name').value,
+        buyer_tax_id: F('buyer_tax_id').value,
+        buyer_name: F('buyer_name').value,
+        deductible: F('deductible').checked,
+        sales_amount: F('sales_amount').value,
+        tax_amount: F('tax_amount').value,
+        total_amount: F('total_amount').value,
+        notes: F('notes').value,
+        items: [...$('items').rows].map(tr => Object.fromEntries(
+          [...tr.querySelectorAll('input')].map(i => [i.dataset.key, i.value])
+        )),
+      };
+      for (const k of ['invoice_number', 'invoice_date', 'sales_amount', 'tax_amount', 'total_amount']) {
+        if (!String(payload[k]).trim()) {
+          F(k).focus();
+          return setMsg(msg, '請填寫所有 * 必填欄位。', 'error');
+        }
+      }
+
+      const btn = $('save-btn');
+      btn.disabled = true;
+      setMsg(msg, '儲存中…');
+      try {
+        const row = await api('/api/purchase-invoices', { method: 'POST', body: JSON.stringify(payload) });
+        store.set('invoice-buyer-id', payload.buyer_tax_id.trim());
+        store.set('invoice-buyer-name', payload.buyer_name.trim());
+        const type = row.erp_status === 'synced' ? 'ok' : row.erp_status === 'failed' ? 'error' : 'warn';
+        setMsg(msg, `發票 ${row.invoice_number} 已儲存，${ERP_TEXT[row.erp_status]}。${row.erp_status === 'synced' ? '' : row.erp_message}`, type);
+        resetForm();
+        loadList();
+      } catch (err) {
+        setMsg(msg, err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ---------- 列表 ----------
+    const money = new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 2 });
+
+    async function loadList() {
+      const rows = await api('/api/purchase-invoices');
+      const tbody = $('list');
+      tbody.innerHTML = '';
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">還沒有登錄任何發票。</td></tr>';
+        return;
+      }
+      for (const r of rows) {
+        const tr = document.createElement('tr');
+        const cell = (text, cls) => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          if (cls) td.className = cls;
+          tr.append(td);
+          return td;
+        };
+        cell(r.invoice_number);
+        cell(String(r.invoice_date).slice(0, 10));
+        cell(r.seller_name || r.seller_tax_id || '—');
+        cell(money.format(r.sales_amount), 'num');
+        cell(money.format(r.tax_amount), 'num');
+        cell(money.format(r.total_amount), 'num');
+        const badge = document.createElement('span');
+        badge.className = `badge ${r.erp_status}`;
+        badge.textContent = ERP_TEXT[r.erp_status] || r.erp_status;
+        badge.title = r.erp_message;
+        cell('').append(badge);
+        const actionTd = cell('');
+        if (r.erp_status !== 'synced') {
+          const btn = document.createElement('button');
+          btn.className = 'btn ghost small';
+          btn.textContent = '重新上傳';
+          btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            try {
+              const updated = await api('/api/purchase-invoices', { method: 'POST', body: JSON.stringify({ retry_id: r.id }) });
+              if (updated.erp_status !== 'synced') alert(updated.erp_message);
+              loadList();
+            } catch (err) {
+              alert(err.message);
+              btn.disabled = false;
+            }
+          });
+          actionTd.append(btn);
+        }
+        tbody.append(tr);
+      }
+    }
+
+    // ---------- 啟動 ----------
+    resetForm();
+    if (accessKey) enter(); else showGate();
+  </script>
+</body>
+</html>
