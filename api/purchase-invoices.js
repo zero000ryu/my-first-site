@@ -72,7 +72,10 @@ export async function POST(request) {
       RETURNING *`;
     if (!row) return json({ error: `發票 ${inv.invoice_number} 已經登錄過了。` }, 409);
 
-    return json(await saveErpResult(row.id, await pushToErp(inv)), 201);
+    // 發票照片只轉送給 ERP 保存，本站不存
+    const photo = typeof body.photo === 'string' && /^data:image\/jpeg;base64,/.test(body.photo)
+      && body.photo.length < 4_000_000 ? body.photo : null;
+    return json(await saveErpResult(row.id, await pushToErp(inv, photo)), 201);
   } catch (err) {
     console.error(err);
     return json({ error: '儲存發票失敗，請稍後再試。' }, 500);

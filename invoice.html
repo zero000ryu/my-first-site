@@ -609,6 +609,8 @@
         tax_amount: F('tax_amount').value,
         total_amount: F('total_amount').value,
         notes: F('notes').value,
+        // 照片一起轉送到 ERP 保存
+        photo: upload?.media_type === 'image/jpeg' ? `data:image/jpeg;base64,${upload.data}` : null,
         items: [...$('items').rows].map(tr => Object.fromEntries(
           [...tr.querySelectorAll('input')].map(i => [i.dataset.key, i.value])
         )),
